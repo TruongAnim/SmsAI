@@ -15,15 +15,34 @@ class MessageRepositoryImpl @Inject constructor(
     @ApplicationContext private val context: Context
 ) : MessageRepository {
 
+    companion object {
+        private const val TAG = "MessageRepository"
+    }
+
     override suspend fun getConversations(): List<Conversation> {
+        Log.d(TAG, "Starting to load conversations...")
+        val startTime = System.currentTimeMillis()
+        
         val messages = getAllMessages()
-        return Conversation.groupMessagesByThread(messages)
+        val messagesLoadTime = System.currentTimeMillis()
+        Log.d(TAG, "Loaded ${messages.size} messages in ${messagesLoadTime - startTime}ms")
+        
+        val conversations = Conversation.groupMessagesByThread(messages)
+        val endTime = System.currentTimeMillis()
+        
+        Log.d(TAG, "Grouped into ${conversations.size} conversations in ${endTime - messagesLoadTime}ms")
+        Log.d(TAG, "Total loading time: ${endTime - startTime}ms")
+        
+        return conversations
     }
 
     private fun getAllMessages(threadId: Long? = null): List<Message> {
+        val startTime = System.currentTimeMillis()
         val messages = mutableListOf<Message>()
         val selection = threadId?.let { "${Telephony.Sms.THREAD_ID} = ?" }
         val selectionArgs = threadId?.let { arrayOf(it.toString()) }
+        
+        Log.d(TAG, "Querying messages${threadId?.let { " for thread $it" } ?: ""}...")
         
         val cursor = context.contentResolver.query(
             Telephony.Sms.CONTENT_URI,
@@ -50,6 +69,8 @@ class MessageRepositoryImpl @Inject constructor(
             val readIndex = it.getColumnIndexOrThrow(Telephony.Sms.READ)
             val threadIdIndex = it.getColumnIndexOrThrow(Telephony.Sms.THREAD_ID)
 
+            Log.d(TAG, "Processing ${it.count} messages from cursor...")
+
             while (it.moveToNext()) {
                 try {
                     messages.add(
@@ -72,10 +93,13 @@ class MessageRepositoryImpl @Inject constructor(
                         )
                     )
                 } catch (e: Exception) {
-                    Log.e("MessageRepository", "Error processing message row", e)
+                    Log.e(TAG, "Error processing message row", e)
                 }
             }
         }
+
+        val endTime = System.currentTimeMillis()
+        Log.d(TAG, "Loaded ${messages.size} messages in ${endTime - startTime}ms")
 
         return messages
     }

@@ -2,24 +2,39 @@ package com.truonganim.sms.ai.ui.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.truonganim.sms.ai.ui.screens.main.MainScreen
-import com.truonganim.sms.ai.ui.screens.main.MainViewModel
+import androidx.navigation.navArgument
+import com.truonganim.sms.ai.ui.screens.home.HomeScreen
+import com.truonganim.sms.ai.ui.screens.home.HomeViewModel
+import com.truonganim.sms.ai.ui.screens.home.ThreadScreen
+import com.truonganim.sms.ai.ui.screens.home.ThreadViewModel
+import com.truonganim.sms.ai.ui.screens.home.ThreadViewModelFactoryProvider
 import com.truonganim.sms.ai.ui.screens.permission.PermissionScreen
 import com.truonganim.sms.ai.ui.screens.splash.SplashScreen
+import java.net.URLDecoder
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
+import androidx.hilt.navigation.compose.hiltViewModel
 
 sealed class Screen(val route: String) {
     object Splash : Screen("splash")
     object Permission : Screen("permission")
-    object Main : Screen("main")
+    object Home : Screen("home")
+    object Thread : Screen("thread/{threadId}/{address}") {
+        fun createRoute(threadId: Long, address: String): String {
+            val encodedAddress = URLEncoder.encode(address, StandardCharsets.UTF_8.toString())
+            return "thread/$threadId/$encodedAddress"
+        }
+    }
 }
 
 @Composable
 fun NavGraph() {
     val navController = rememberNavController()
-    val mainViewModel: MainViewModel = viewModel()
+    val homeViewModel: HomeViewModel = hiltViewModel()
 
     NavHost(
         navController = navController,
@@ -33,7 +48,7 @@ fun NavGraph() {
                     }
                 },
                 onNavigateToMain = {
-                    navController.navigate(Screen.Main.route) {
+                    navController.navigate(Screen.Home.route) {
                         popUpTo(Screen.Splash.route) { inclusive = true }
                     }
                 }
@@ -43,15 +58,44 @@ fun NavGraph() {
         composable(Screen.Permission.route) {
             PermissionScreen(
                 onPermissionsGranted = {
-                    navController.navigate(Screen.Main.route) {
+                    navController.navigate(Screen.Home.route) {
                         popUpTo(Screen.Permission.route) { inclusive = true }
                     }
                 }
             )
         }
 
-        composable(Screen.Main.route) {
-            MainScreen(viewModel = mainViewModel)
+        composable(Screen.Home.route) {
+            HomeScreen(
+                viewModel = homeViewModel,
+                onConversationClick = { threadId, address ->
+                    navController.navigate(Screen.Thread.createRoute(threadId, address))
+                }
+            )
+        }
+
+        composable(
+            route = Screen.Thread.route,
+            arguments = listOf(
+                navArgument("threadId") { type = NavType.LongType },
+                navArgument("address") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val threadId = backStackEntry.arguments?.getLong("threadId") ?: 0L
+            val address = URLDecoder.decode(
+                backStackEntry.arguments?.getString("address"),
+                StandardCharsets.UTF_8.toString()
+            )
+            
+            val factoryProvider: ThreadViewModelFactoryProvider = hiltViewModel()
+            val threadViewModel: ThreadViewModel = viewModel(
+                factory = factoryProvider.createViewModelFactory(threadId, address)
+            )
+            
+            ThreadScreen(
+                viewModel = threadViewModel,
+                onNavigateBack = { navController.popBackStack() }
+            )
         }
     }
 } 
