@@ -1,16 +1,20 @@
 package com.truonganim.sms.ai.ui.screens.home
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Call
-import androidx.compose.material.icons.filled.Email
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Settings
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.truonganim.sms.ai.ui.screens.calls.CallScreen
+import com.truonganim.sms.ai.ui.screens.calls.CallViewModel
 
 enum class HomeTab {
     CALLS, MESSAGES, NOTES, SETTINGS
@@ -20,9 +24,11 @@ enum class HomeTab {
 @Composable
 fun HomeScreen(
     viewModel: HomeViewModel,
-    onConversationClick: (threadId: Long, address: String) -> Unit
+    onConversationClick: (Long, String) -> Unit,
+    onNewConversation: () -> Unit
 ) {
     var selectedTab by remember { mutableStateOf(HomeTab.MESSAGES) }
+    val callViewModel: CallViewModel = hiltViewModel()
 
     Scaffold(
         topBar = {
@@ -43,29 +49,40 @@ fun HomeScreen(
         bottomBar = {
             NavigationBar {
                 NavigationBarItem(
-                    icon = { Icon(Icons.Default.Call, contentDescription = "Calls") },
-                    label = { Text("Calls") },
                     selected = selectedTab == HomeTab.CALLS,
-                    onClick = { selectedTab = HomeTab.CALLS }
+                    onClick = { selectedTab = HomeTab.CALLS },
+                    icon = { Icon(Icons.Filled.Phone, contentDescription = "Calls") },
+                    label = { Text("Calls") }
                 )
                 NavigationBarItem(
-                    icon = { Icon(Icons.Default.Email, contentDescription = "Messages") },
-                    label = { Text("Messages") },
                     selected = selectedTab == HomeTab.MESSAGES,
-                    onClick = { selectedTab = HomeTab.MESSAGES }
+                    onClick = { selectedTab = HomeTab.MESSAGES },
+                    icon = { Icon(Icons.Filled.Email, contentDescription = "Messages") },
+                    label = { Text("Messages") }
                 )
                 NavigationBarItem(
-                    icon = { Icon(Icons.Default.Edit, contentDescription = "Notes") },
-                    label = { Text("Notes") },
                     selected = selectedTab == HomeTab.NOTES,
-                    onClick = { selectedTab = HomeTab.NOTES }
+                    onClick = { selectedTab = HomeTab.NOTES },
+                    icon = { Icon(Icons.Filled.Edit, contentDescription = "Notes") },
+                    label = { Text("Notes") }
                 )
                 NavigationBarItem(
-                    icon = { Icon(Icons.Default.Settings, contentDescription = "Settings") },
-                    label = { Text("Settings") },
                     selected = selectedTab == HomeTab.SETTINGS,
-                    onClick = { selectedTab = HomeTab.SETTINGS }
+                    onClick = { selectedTab = HomeTab.SETTINGS },
+                    icon = { Icon(Icons.Filled.Settings, contentDescription = "Settings") },
+                    label = { Text("Settings") }
                 )
+            }
+        },
+        floatingActionButton = {
+            if (selectedTab == HomeTab.MESSAGES) {
+                FloatingActionButton(
+                    onClick = onNewConversation,
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                ) {
+                    Icon(Icons.Filled.Add, contentDescription = "New Conversation")
+                }
             }
         }
     ) { paddingValues ->
@@ -76,8 +93,12 @@ fun HomeScreen(
         ) {
             when (selectedTab) {
                 HomeTab.CALLS -> {
-                    // TODO: Implement Calls screen
-                    Text("Calls Screen")
+                    CallScreen(
+                        viewModel = callViewModel,
+                        onCallClick = { phoneNumber ->
+                            // TODO: Implement call action
+                        }
+                    )
                 }
                 HomeTab.MESSAGES -> {
                     MessagesTab(
@@ -86,12 +107,20 @@ fun HomeScreen(
                     )
                 }
                 HomeTab.NOTES -> {
-                    // TODO: Implement Notes screen
-                    Text("Notes Screen")
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        Text(
+                            text = "Notes Coming Soon",
+                            modifier = Modifier.align(Alignment.Center)
+                        )
+                    }
                 }
                 HomeTab.SETTINGS -> {
-                    // TODO: Implement Settings screen
-                    Text("Settings Screen")
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        Text(
+                            text = "Settings Coming Soon",
+                            modifier = Modifier.align(Alignment.Center)
+                        )
+                    }
                 }
             }
         }

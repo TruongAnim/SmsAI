@@ -28,8 +28,13 @@ class HomeViewModel @Inject constructor(
         loadConversations()
     }
 
+    fun refresh() {
+        loadConversations()
+    }
+
     private fun loadConversations() {
         viewModelScope.launch {
+            _uiState.value = HomeUiState.Loading
             try {
                 val conversations = messageRepository.getConversations()
                 _uiState.value = HomeUiState.Success(conversations)

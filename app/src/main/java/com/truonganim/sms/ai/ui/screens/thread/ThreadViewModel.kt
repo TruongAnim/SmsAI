@@ -19,7 +19,9 @@ sealed class ThreadUiState {
     data class Success(
         val address: String,
         val contactName: String?,
-        val messages: List<Message>
+        val messages: List<Message>,
+        val isSending: Boolean = false,
+        val errorMessage: String? = null
     ) : ThreadUiState()
     object Loading : ThreadUiState()
     data class Error(val message: String) : ThreadUiState()
@@ -56,14 +58,40 @@ class ThreadViewModel @AssistedInject constructor(
     }
 
     fun sendMessage(text: String) {
+        if (text.isBlank()) return
+
         viewModelScope.launch {
+            val currentState = _uiState.value
+            if (currentState !is ThreadUiState.Success) return@launch
+
+            // Update state to show sending
+            _uiState.value = currentState.copy(isSending = true, errorMessage = null)
+
             try {
-                messageRepository.sendMessage(address, text)
-                // Reload messages after sending
-                loadMessages()
+                messageRepository.sendMessage(address, text).onSuccess {
+                    // Reload messages after successful send
+                    loadMessages()
+                }.onFailure { error ->
+                    // Show error but keep existing messages
+                    _uiState.value = currentState.copy(
+                        isSending = false,
+                        errorMessage = error.message ?: "Failed to send message"
+                    )
+                }
             } catch (e: Exception) {
-                _uiState.value = ThreadUiState.Error(e.message ?: "Failed to send message")
+                // Show error but keep existing messages
+                _uiState.value = currentState.copy(
+                    isSending = false,
+                    errorMessage = e.message ?: "Failed to send message"
+                )
             }
+        }
+    }
+
+    fun clearError() {
+        val currentState = _uiState.value
+        if (currentState is ThreadUiState.Success) {
+            _uiState.value = currentState.copy(errorMessage = null)
         }
     }
 

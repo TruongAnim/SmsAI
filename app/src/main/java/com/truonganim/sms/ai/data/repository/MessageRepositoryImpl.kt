@@ -3,6 +3,7 @@ package com.truonganim.sms.ai.data.repository
 import android.content.ContentResolver
 import android.content.Context
 import android.provider.Telephony
+import android.telephony.SmsManager
 import android.util.Log
 import com.truonganim.sms.ai.domain.model.Conversation
 import com.truonganim.sms.ai.domain.model.Message
@@ -180,9 +181,51 @@ class MessageRepositoryImpl @Inject constructor(
 
     override suspend fun sendMessage(address: String, body: String): Result<Unit> {
         return try {
-            // TODO: Implement actual SMS sending
+            Log.d(TAG, "Sending message to $address: $body")
+            val smsManager = context.getSystemService(SmsManager::class.java)
+            
+            // Split message if it's too long
+            val messageParts = smsManager.divideMessage(body)
+            
+            if (messageParts.size > 1) {
+                smsManager.sendMultipartTextMessage(
+                    address,
+                    null,
+                    messageParts,
+                    null,
+                    null
+                )
+            } else {
+                smsManager.sendTextMessage(
+                    address,
+                    null,
+                    body,
+                    null,
+                    null
+                )
+            }
+            
+            // Save sent message to the SMS database
+            val values = android.content.ContentValues().apply {
+                put(Telephony.Sms.ADDRESS, address)
+                put(Telephony.Sms.BODY, body)
+                put(Telephony.Sms.DATE, System.currentTimeMillis())
+                put(Telephony.Sms.READ, 1)
+                put(Telephony.Sms.TYPE, Telephony.Sms.MESSAGE_TYPE_SENT)
+                // If we have an existing thread ID, use it
+                getAllMessages(null).firstOrNull { it.address == address }?.threadId?.let { threadId ->
+                    put(Telephony.Sms.THREAD_ID, threadId)
+                }
+            }
+            
+            context.contentResolver.insert(Telephony.Sms.CONTENT_URI, values)?.let { uri ->
+                Log.d(TAG, "Message saved to database: $uri")
+            } ?: Log.w(TAG, "Failed to save message to database")
+            
+            Log.d(TAG, "Message sent successfully")
             Result.success(Unit)
         } catch (e: Exception) {
+            Log.e(TAG, "Failed to send message", e)
             Result.failure(e)
         }
     }

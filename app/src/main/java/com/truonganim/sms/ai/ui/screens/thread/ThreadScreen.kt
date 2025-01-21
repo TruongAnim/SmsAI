@@ -12,6 +12,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.activity.compose.BackHandler
 import com.truonganim.sms.ai.domain.model.Message
 import com.truonganim.sms.ai.domain.model.MessageType
 import java.text.SimpleDateFormat
@@ -25,6 +26,11 @@ fun ThreadScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var messageText by remember { mutableStateOf("") }
+
+    // Handle system back button press
+    BackHandler {
+        onNavigateBack()
+    }
 
     Scaffold(
         topBar = {
@@ -70,7 +76,8 @@ fun ThreadScreen(
                         .weight(1f)
                         .padding(end = 8.dp),
                     placeholder = { Text("Type a message") },
-                    maxLines = 4
+                    maxLines = 4,
+                    enabled = (uiState as? ThreadUiState.Success)?.isSending != true
                 )
                 IconButton(
                     onClick = {
@@ -78,40 +85,64 @@ fun ThreadScreen(
                             viewModel.sendMessage(messageText)
                             messageText = ""
                         }
-                    }
+                    },
+                    enabled = messageText.isNotBlank() && (uiState as? ThreadUiState.Success)?.isSending != true
                 ) {
-                    Icon(Icons.Default.Send, contentDescription = "Send message")
+                    if ((uiState as? ThreadUiState.Success)?.isSending == true) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Icon(Icons.Default.Send, contentDescription = "Send message")
+                    }
                 }
             }
         }
     ) { paddingValues ->
-        when (val state = uiState) {
-            is ThreadUiState.Success -> {
-                MessageList(
-                    messages = state.messages,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(paddingValues)
-                )
-            }
-            is ThreadUiState.Loading -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(paddingValues),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+        ) {
+            when (val state = uiState) {
+                is ThreadUiState.Success -> {
+                    MessageList(
+                        messages = state.messages,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                    
+                    // Show error message if any
+                    state.errorMessage?.let { error ->
+                        Snackbar(
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .padding(16.dp),
+                            action = {
+                                TextButton(onClick = { viewModel.clearError() }) {
+                                    Text("DISMISS")
+                                }
+                            }
+                        ) {
+                            Text(error)
+                        }
+                    }
                 }
-            }
-            is ThreadUiState.Error -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(paddingValues),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(state.message)
+                is ThreadUiState.Loading -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
+                }
+                is ThreadUiState.Error -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(state.message)
+                    }
                 }
             }
         }

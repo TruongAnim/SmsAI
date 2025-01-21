@@ -29,6 +29,7 @@ sealed class Screen(val route: String) {
             return "thread/$threadId/$encodedAddress"
         }
     }
+    object NewConversation : Screen("new_conversation")
 }
 
 @Composable
@@ -70,8 +71,17 @@ fun NavGraph() {
                 viewModel = homeViewModel,
                 onConversationClick = { threadId, address ->
                     navController.navigate(Screen.Thread.createRoute(threadId, address))
+                },
+                onNewConversation = {
+                    navController.navigate(Screen.NewConversation.route)
                 }
             )
+        }
+
+        composable(Screen.NewConversation.route) {
+            // TODO: Implement NewConversationScreen
+            // For now, we'll just pop back
+            navController.popBackStack()
         }
 
         composable(
@@ -94,7 +104,10 @@ fun NavGraph() {
             
             ThreadScreen(
                 viewModel = threadViewModel,
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = {
+                    homeViewModel.refresh()
+                    navController.popBackStack()
+                }
             )
         }
     }

@@ -23,6 +23,14 @@ fun PermissionScreen(
     val context = LocalContext.current
     var showRationale by remember { mutableStateOf(false) }
 
+    val permissions = listOf(
+        android.Manifest.permission.READ_SMS,
+        android.Manifest.permission.SEND_SMS,
+        android.Manifest.permission.RECEIVE_SMS,
+        android.Manifest.permission.READ_CONTACTS,
+        android.Manifest.permission.READ_CALL_LOG
+    )
+
     // Launcher for default SMS app request
     val defaultSmsLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
@@ -82,7 +90,9 @@ fun PermissionScreen(
                             Manifest.permission.SEND_SMS,
                             Manifest.permission.RECEIVE_SMS,
                             Manifest.permission.RECEIVE_MMS,
-                            Manifest.permission.RECEIVE_WAP_PUSH
+                            Manifest.permission.RECEIVE_WAP_PUSH,
+                            Manifest.permission.READ_CONTACTS,
+                            Manifest.permission.READ_CALL_LOG
                         )
                     )
                 }
