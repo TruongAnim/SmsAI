@@ -1,10 +1,11 @@
-package com.truonganim.sms.ai.ui.screens.home
+package com.truonganim.sms.ai.ui.screens.thread
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.truonganim.sms.ai.domain.model.Message
 import com.truonganim.sms.ai.domain.repository.MessageRepository
+import com.truonganim.sms.ai.domain.repository.ContactRepository
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
@@ -17,6 +18,7 @@ import javax.inject.Inject
 sealed class ThreadUiState {
     data class Success(
         val address: String,
+        val contactName: String?,
         val messages: List<Message>
     ) : ThreadUiState()
     object Loading : ThreadUiState()
@@ -25,6 +27,7 @@ sealed class ThreadUiState {
 
 class ThreadViewModel @AssistedInject constructor(
     private val messageRepository: MessageRepository,
+    private val contactRepository: ContactRepository,
     @Assisted private val threadId: Long,
     @Assisted private val address: String
 ) : ViewModel() {
@@ -40,8 +43,10 @@ class ThreadViewModel @AssistedInject constructor(
         viewModelScope.launch {
             try {
                 val messages = messageRepository.getMessages(threadId)
+                val contact = contactRepository.getContactByPhoneNumber(address)
                 _uiState.value = ThreadUiState.Success(
                     address = address,
+                    contactName = contact?.name,
                     messages = messages
                 )
             } catch (e: Exception) {

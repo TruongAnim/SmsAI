@@ -1,4 +1,4 @@
-package com.truonganim.sms.ai.ui.screens.home
+package com.truonganim.sms.ai.ui.screens.thread
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -30,14 +30,27 @@ fun ThreadScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Text(
-                        text = when (val state = uiState) {
-                            is ThreadUiState.Success -> state.address
-                            else -> ""
-                        },
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    when (val state = uiState) {
+                        is ThreadUiState.Success -> {
+                            Column {
+                                Text(
+                                    text = state.contactName ?: state.address,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+                                if (state.contactName != null) {
+                                    Text(
+                                        text = state.address,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
+                                }
+                            }
+                        }
+                        else -> Text("")
+                    }
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
@@ -67,43 +80,38 @@ fun ThreadScreen(
                         }
                     }
                 ) {
-                    Icon(Icons.Default.Send, contentDescription = "Send")
+                    Icon(Icons.Default.Send, contentDescription = "Send message")
                 }
             }
         }
     ) { paddingValues ->
         when (val state = uiState) {
+            is ThreadUiState.Success -> {
+                MessageList(
+                    messages = state.messages,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues)
+                )
+            }
             is ThreadUiState.Loading -> {
                 Box(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues),
                     contentAlignment = Alignment.Center
                 ) {
                     CircularProgressIndicator()
                 }
             }
-            is ThreadUiState.Success -> {
-                LazyColumn(
+            is ThreadUiState.Error -> {
+                Box(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(paddingValues),
-                    reverseLayout = true,
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(state.messages) { message ->
-                        MessageBubble(message = message)
-                    }
-                }
-            }
-            is ThreadUiState.Error -> {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = state.message,
-                        color = MaterialTheme.colorScheme.error
-                    )
+                    Text(state.message)
                 }
             }
         }
@@ -111,25 +119,43 @@ fun ThreadScreen(
 }
 
 @Composable
-private fun MessageBubble(message: Message) {
-    val isIncoming = message.type == MessageType.INBOX
-    val backgroundColor = if (isIncoming) {
-        MaterialTheme.colorScheme.secondaryContainer
-    } else {
-        MaterialTheme.colorScheme.primaryContainer
-    }
-
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalAlignment = if (isIncoming) Alignment.Start else Alignment.End
+private fun MessageList(
+    messages: List<Message>,
+    modifier: Modifier = Modifier
+) {
+    LazyColumn(
+        modifier = modifier,
+        contentPadding = PaddingValues(16.dp),
+        reverseLayout = true
     ) {
-        Surface(
-            color = backgroundColor,
-            shape = MaterialTheme.shapes.medium,
-            modifier = Modifier.widthIn(max = 340.dp)
+        items(messages) { message ->
+            MessageItem(message = message)
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+    }
+}
+
+@Composable
+private fun MessageItem(
+    message: Message,
+    modifier: Modifier = Modifier
+) {
+    val isIncoming = message.type == MessageType.INBOX
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = if (isIncoming) Arrangement.Start else Arrangement.End
+    ) {
+        Card(
+            modifier = Modifier.widthIn(max = 340.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = if (isIncoming) 
+                    MaterialTheme.colorScheme.secondaryContainer 
+                else 
+                    MaterialTheme.colorScheme.primaryContainer
+            )
         ) {
             Column(
-                modifier = Modifier.padding(12.dp)
+                modifier = Modifier.padding(8.dp)
             ) {
                 Text(
                     text = message.body,

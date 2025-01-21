@@ -41,7 +41,7 @@ fun ConversationList(
                         modifier = Modifier.weight(1f)
                     ) {
                         Text(
-                            text = conversation.address,
+                            text = conversation.displayName,
                             style = MaterialTheme.typography.titleMedium
                         )
                         Spacer(modifier = Modifier.height(4.dp))

@@ -9,9 +9,9 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.truonganim.sms.ai.ui.screens.home.HomeScreen
 import com.truonganim.sms.ai.ui.screens.home.HomeViewModel
-import com.truonganim.sms.ai.ui.screens.home.ThreadScreen
-import com.truonganim.sms.ai.ui.screens.home.ThreadViewModel
-import com.truonganim.sms.ai.ui.screens.home.ThreadViewModelFactoryProvider
+import com.truonganim.sms.ai.ui.screens.thread.ThreadScreen
+import com.truonganim.sms.ai.ui.screens.thread.ThreadViewModel
+import com.truonganim.sms.ai.ui.screens.thread.ThreadViewModelFactoryProvider
 import com.truonganim.sms.ai.ui.screens.permission.PermissionScreen
 import com.truonganim.sms.ai.ui.screens.splash.SplashScreen
 import java.net.URLDecoder

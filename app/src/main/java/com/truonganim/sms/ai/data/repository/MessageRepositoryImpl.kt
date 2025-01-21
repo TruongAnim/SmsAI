@@ -8,11 +8,13 @@ import com.truonganim.sms.ai.domain.model.Conversation
 import com.truonganim.sms.ai.domain.model.Message
 import com.truonganim.sms.ai.domain.model.MessageType
 import com.truonganim.sms.ai.domain.repository.MessageRepository
+import com.truonganim.sms.ai.domain.repository.ContactRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 
 class MessageRepositoryImpl @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val contactRepository: ContactRepository
 ) : MessageRepository {
 
     companion object {
@@ -23,11 +25,27 @@ class MessageRepositoryImpl @Inject constructor(
         Log.d(TAG, "Starting to load conversations...")
         val startTime = System.currentTimeMillis()
         
+        // Get all messages first
         val messages = getAllMessages()
         val messagesLoadTime = System.currentTimeMillis()
         Log.d(TAG, "Loaded ${messages.size} messages in ${messagesLoadTime - startTime}ms")
         
-        val conversations = Conversation.groupMessagesByThread(messages)
+        // Get unique addresses from messages
+        val uniqueAddresses = messages.map { it.address }.distinct()
+        
+        // Load contacts for all addresses
+        val contactsLoadStartTime = System.currentTimeMillis()
+        contactRepository.loadContacts() // Ensure contacts are loaded first
+        val contacts = uniqueAddresses.mapNotNull { address ->
+            contactRepository.getContactByPhoneNumber(address)?.let { contact ->
+                address to contact
+            }
+        }.toMap()
+        
+        Log.d(TAG, "Loaded ${contacts.size} contacts in ${System.currentTimeMillis() - contactsLoadStartTime}ms")
+        
+        // Group messages into conversations with contact information
+        val conversations = Conversation.groupMessagesByThread(messages, contacts)
         val endTime = System.currentTimeMillis()
         
         Log.d(TAG, "Grouped into ${conversations.size} conversations in ${endTime - messagesLoadTime}ms")
