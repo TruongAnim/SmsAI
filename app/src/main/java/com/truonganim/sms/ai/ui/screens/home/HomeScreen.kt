@@ -11,10 +11,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.truonganim.sms.ai.ui.screens.calls.CallScreen
 import com.truonganim.sms.ai.ui.screens.calls.CallViewModel
+import com.truonganim.sms.ai.utils.CallUtils
 
 enum class HomeTab {
     CALLS, MESSAGES, NOTES, SETTINGS
@@ -25,10 +27,12 @@ enum class HomeTab {
 fun HomeScreen(
     viewModel: HomeViewModel,
     onConversationClick: (Long, String) -> Unit,
-    onNewConversation: () -> Unit
+    onNewConversation: () -> Unit,
+    onCallMessage: (String) -> Unit
 ) {
     var selectedTab by remember { mutableStateOf(HomeTab.MESSAGES) }
     val callViewModel: CallViewModel = hiltViewModel()
+    val context = LocalContext.current
 
     Scaffold(
         topBar = {
@@ -95,9 +99,10 @@ fun HomeScreen(
                 HomeTab.CALLS -> {
                     CallScreen(
                         viewModel = callViewModel,
-                        onCallClick = { phoneNumber ->
-                            // TODO: Implement call action
-                        }
+                        onCallClick = { number -> 
+                            CallUtils.makePhoneCall(context, number)
+                        },
+                        onMessageClick = onCallMessage
                     )
                 }
                 HomeTab.MESSAGES -> {

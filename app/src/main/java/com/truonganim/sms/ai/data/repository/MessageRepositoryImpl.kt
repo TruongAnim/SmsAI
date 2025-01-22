@@ -2,6 +2,7 @@ package com.truonganim.sms.ai.data.repository
 
 import android.content.ContentResolver
 import android.content.Context
+import android.net.Uri
 import android.provider.Telephony
 import android.telephony.SmsManager
 import android.util.Log
@@ -228,5 +229,46 @@ class MessageRepositoryImpl @Inject constructor(
             Log.e(TAG, "Failed to send message", e)
             Result.failure(e)
         }
+    }
+
+    override suspend fun getThreadIdForAddress(address: String): Long {
+        Log.d(TAG, "Getting thread ID for address: $address")
+        try {
+            // First try to find an existing thread with this address
+            context.contentResolver.query(
+                Telephony.Sms.CONTENT_URI,
+                arrayOf(Telephony.Sms.THREAD_ID),
+                "${Telephony.Sms.ADDRESS} = ?",
+                arrayOf(address),
+                "${Telephony.Sms.DATE} DESC LIMIT 1"
+            )?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val threadId = cursor.getLong(cursor.getColumnIndexOrThrow(Telephony.Sms.THREAD_ID))
+                    if (threadId > 0) {
+                        Log.d(TAG, "Found existing thread ID $threadId for address $address")
+                        return threadId
+                    }
+                }
+            }
+
+            // If no existing thread found, try to create one
+            context.contentResolver.query(
+                Uri.parse("content://mms-sms/threadID"),
+                null,
+                "recipient_ids = ?",
+                arrayOf(address),
+                null
+            )?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val threadId = cursor.getLong(0)
+                    Log.d(TAG, "Created new thread ID $threadId for address $address")
+                    return threadId
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting thread ID for address $address", e)
+        }
+        Log.d(TAG, "No thread found or created for address $address, returning 0")
+        return 0L // Return 0 if no thread exists or couldn't be created
     }
 } 

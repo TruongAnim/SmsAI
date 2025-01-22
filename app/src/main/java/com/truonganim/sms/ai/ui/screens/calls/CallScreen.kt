@@ -5,8 +5,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Call
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.Message
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -22,7 +22,8 @@ import java.util.*
 @Composable
 fun CallScreen(
     viewModel: CallViewModel,
-    onCallClick: (String) -> Unit
+    onCallClick: (String) -> Unit,
+    onMessageClick: (String) -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -37,7 +38,7 @@ fun CallScreen(
                         CallItem(
                             call = call,
                             onCallClick = { onCallClick(call.number) },
-                            onDeleteClick = { viewModel.deleteCallLog(call.id) }
+                            onMessageClick = { onMessageClick(call.number) }
                         )
                     }
                 }
@@ -64,33 +65,8 @@ fun CallScreen(
 private fun CallItem(
     call: Call,
     onCallClick: () -> Unit,
-    onDeleteClick: () -> Unit
+    onMessageClick: () -> Unit
 ) {
-    var showDeleteDialog by remember { mutableStateOf(false) }
-
-    if (showDeleteDialog) {
-        AlertDialog(
-            onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Delete Call Log") },
-            text = { Text("Are you sure you want to delete this call log?") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        onDeleteClick()
-                        showDeleteDialog = false
-                    }
-                ) {
-                    Text("DELETE")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) {
-                    Text("CANCEL")
-                }
-            }
-        )
-    }
-
     ListItem(
         headlineContent = {
             Text(
@@ -151,10 +127,10 @@ private fun CallItem(
                         contentDescription = "Call"
                     )
                 }
-                IconButton(onClick = { showDeleteDialog = true }) {
+                IconButton(onClick = onMessageClick) {
                     Icon(
-                        imageVector = Icons.Filled.Delete,
-                        contentDescription = "Delete"
+                        imageVector = Icons.Filled.Message,
+                        contentDescription = "Message"
                     )
                 }
             }

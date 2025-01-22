@@ -1,5 +1,6 @@
 package com.truonganim.sms.ai.ui.screens.thread
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -33,6 +34,9 @@ class ThreadViewModel @AssistedInject constructor(
     @Assisted private val threadId: Long,
     @Assisted private val address: String
 ) : ViewModel() {
+    companion object {
+        private const val TAG = "ThreadViewModel"
+    }
 
     private val _uiState = MutableStateFlow<ThreadUiState>(ThreadUiState.Loading)
     val uiState: StateFlow<ThreadUiState> = _uiState
@@ -44,6 +48,7 @@ class ThreadViewModel @AssistedInject constructor(
     private fun loadMessages() {
         viewModelScope.launch {
             try {
+                Log.d(TAG, "Loading messages for threadId: $threadId, address: $address")
                 val messages = messageRepository.getMessages(threadId)
                 val contact = contactRepository.getContactByPhoneNumber(address)
                 _uiState.value = ThreadUiState.Success(

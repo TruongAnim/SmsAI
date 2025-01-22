@@ -10,5 +10,5 @@ data class Contact(
 
 data class PhoneNumber(
     val number: String,
-    val normalizedNumber: String?
+    val normalizedNumber: String
 ) 

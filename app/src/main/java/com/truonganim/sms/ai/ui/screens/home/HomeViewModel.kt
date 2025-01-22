@@ -43,4 +43,8 @@ class HomeViewModel @Inject constructor(
             }
         }
     }
+
+    suspend fun getThreadIdForAddress(address: String): Long {
+        return messageRepository.getThreadIdForAddress(address)
+    }
 } 

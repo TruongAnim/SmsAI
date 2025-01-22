@@ -7,4 +7,5 @@ interface MessageRepository {
     suspend fun getConversations(): List<Conversation>
     suspend fun getMessages(threadId: Long): List<Message>
     suspend fun sendMessage(address: String, body: String): Result<Unit>
+    suspend fun getThreadIdForAddress(address: String): Long
 } 

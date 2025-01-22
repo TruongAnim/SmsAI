@@ -7,6 +7,7 @@ import android.util.Log
 import com.truonganim.sms.ai.domain.model.Contact
 import com.truonganim.sms.ai.domain.model.PhoneNumber
 import com.truonganim.sms.ai.domain.repository.ContactRepository
+import com.truonganim.sms.ai.utils.PhoneNumberUtils
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -99,13 +100,21 @@ class ContactRepositoryImpl @Inject constructor(
                             if (!number.isNullOrBlank()) {
                                 val contact = contactsById[contactId]
                                 if (contact != null) {
+                                    val normalizedNum = if (normalizedNumber.isNullOrBlank()) {
+                                        PhoneNumberUtils.normalizePhoneNumber(number)
+                                    } else {
+                                        normalizedNumber
+                                    }
+                                    
                                     (contact.phoneNumbers as MutableList).add(
-                                        PhoneNumber(number = number, normalizedNumber = normalizedNumber)
+                                        PhoneNumber(number = number, normalizedNumber = normalizedNum)
                                     )
-                                    // Map both normal and normalized numbers to contact ID
-                                    phoneNumberToContactIdMap[number] = contactId
-                                    if (!normalizedNumber.isNullOrBlank()) {
-                                        phoneNumberToContactIdMap[normalizedNumber] = contactId
+                                    
+                                    // Prioritize normalized numbers in the map
+                                    phoneNumberToContactIdMap[normalizedNum] = contactId
+                                    // Only add raw number as fallback
+                                    if (!phoneNumberToContactIdMap.containsKey(number)) {
+                                        phoneNumberToContactIdMap[number] = contactId
                                     }
                                 }
                             }
@@ -115,16 +124,16 @@ class ContactRepositoryImpl @Inject constructor(
                     }
                 }
 
-                // Store contacts in cache by their phone numbers
+                // Store contacts in cache by their phone numbers, prioritizing normalized numbers
                 contactsById.values.forEach { contact ->
                     contact.phoneNumbers.forEach { phoneNumber ->
-                        contactsCache[phoneNumber.number] = contact
-                        if (phoneNumber.normalizedNumber != null) {
-                            contactsCache[phoneNumber.normalizedNumber] = contact
-                        } else {
-                            // Manually normalize and cache if system normalized number is null
-                            val manuallyNormalizedNumber = normalizePhoneNumber(phoneNumber.number)
-                            contactsCache[manuallyNormalizedNumber] = contact
+                        // First add normalized number to cache
+                        phoneNumber.normalizedNumber?.let { normalized ->
+                            contactsCache[normalized] = contact
+                        }
+                        // Add raw number only if no normalized version exists for this number
+                        if (!contactsCache.containsKey(PhoneNumberUtils.normalizePhoneNumber(phoneNumber.number))) {
+                            contactsCache[PhoneNumberUtils.normalizePhoneNumber(phoneNumber.number)] = contact
                         }
                     }
                 }
@@ -139,23 +148,70 @@ class ContactRepositoryImpl @Inject constructor(
         }
     }
 
+    private fun getPhoneNumbers(contactId: Long): List<PhoneNumber> {
+        val phoneNumbers = mutableListOf<PhoneNumber>()
+        context.contentResolver.query(
+            ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+            arrayOf(
+                ContactsContract.CommonDataKinds.Phone.NUMBER,
+                ContactsContract.CommonDataKinds.Phone.NORMALIZED_NUMBER
+            ),
+            "${ContactsContract.CommonDataKinds.Phone.CONTACT_ID} = ?",
+            arrayOf(contactId.toString()),
+            null
+        )?.use { cursor ->
+            while (cursor.moveToNext()) {
+                try {
+                    val number = cursor.getString(cursor.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Phone.NUMBER))
+                    val normalizedNumber = cursor.getString(cursor.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Phone.NORMALIZED_NUMBER))
+                        ?: PhoneNumberUtils.normalizePhoneNumber(number)
+                    
+                    phoneNumbers.add(PhoneNumber(number = number, normalizedNumber = normalizedNumber))
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error processing phone number", e)
+                }
+            }
+        }
+        return phoneNumbers
+    }
+
     override suspend fun getContactByPhoneNumber(phoneNumber: String): Contact? {
         loadContacts() // Ensure contacts are loaded
-        return contactsCache[phoneNumber] ?: contactsCache[normalizePhoneNumber(phoneNumber)]
+        
+        // First try with the normalized version of the input
+        val normalizedInput = PhoneNumberUtils.normalizePhoneNumber(phoneNumber)
+        return contactsCache[normalizedInput] ?: run {
+            // If not found, try with the raw input as fallback
+            contactsCache[PhoneNumberUtils.normalizePhoneNumber(phoneNumber)]
+        }
     }
 
     override suspend fun searchContacts(query: String): List<Contact> {
         loadContacts() // Ensure contacts are loaded
+        
+        // If query looks like a phone number, normalize it for comparison
+        val normalizedQuery = if (query.any { it.isDigit() }) {
+            PhoneNumberUtils.normalizePhoneNumber(query)
+        } else {
+            query
+        }
+        
         return contactsCache.values
             .distinctBy { it.id }
             .filter { contact ->
                 contact.name.contains(query, ignoreCase = true) ||
-                contact.phoneNumbers.any { it.number.contains(query) }
+                contact.phoneNumbers.any { phoneNumber -> 
+                    phoneNumber.normalizedNumber.contains(normalizedQuery) ||
+                    PhoneNumberUtils.normalizePhoneNumber(phoneNumber.number).contains(normalizedQuery)
+                }
             }
             .sortedBy { it.name }
     }
 
-    private fun normalizePhoneNumber(phoneNumber: String): String {
-        return phoneNumber.replace(Regex("[^0-9+]"), "")
+    override suspend fun getContacts(): List<Contact> {
+        loadContacts() // Ensure contacts are loaded
+        return contactsCache.values
+            .distinctBy { it.id }
+            .sortedBy { it.name }
     }
 } 
