@@ -17,6 +17,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.truonganim.sms.ai.ui.screens.calls.CallScreen
 import com.truonganim.sms.ai.ui.screens.calls.CallViewModel
 import com.truonganim.sms.ai.utils.CallUtils
+import com.truonganim.sms.ai.domain.model.Call
 
 enum class HomeTab {
     CALLS, MESSAGES, NOTES, SETTINGS
@@ -28,9 +29,11 @@ fun HomeScreen(
     viewModel: HomeViewModel,
     onConversationClick: (Long, String) -> Unit,
     onNewConversation: () -> Unit,
-    onCallMessage: (String) -> Unit
+    onCallMessage: (String) -> Unit,
+    onCallDetail: (Call) -> Unit,
+    initialTab: HomeTab = HomeTab.MESSAGES
 ) {
-    var selectedTab by remember { mutableStateOf(HomeTab.MESSAGES) }
+    var selectedTab by remember { mutableStateOf(initialTab) }
     val callViewModel: CallViewModel = hiltViewModel()
     val context = LocalContext.current
 
@@ -102,7 +105,8 @@ fun HomeScreen(
                         onCallClick = { number -> 
                             CallUtils.makePhoneCall(context, number)
                         },
-                        onMessageClick = onCallMessage
+                        onMessageClick = onCallMessage,
+                        onCallItemClick = onCallDetail
                     )
                 }
                 HomeTab.MESSAGES -> {

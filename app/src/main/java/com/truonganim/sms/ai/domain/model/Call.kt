@@ -7,7 +7,7 @@ data class Call(
     val timestamp: Long,
     val duration: Long,
     val type: CallType,
-    val isNew: Boolean
+    val isNew: Boolean = false
 )
 
 enum class CallType {

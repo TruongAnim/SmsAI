@@ -1,14 +1,15 @@
 package com.truonganim.sms.ai.ui.screens.calls
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Call
-import androidx.compose.material.icons.filled.Phone
-import androidx.compose.material.icons.filled.Message
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
@@ -23,38 +24,36 @@ import java.util.*
 fun CallScreen(
     viewModel: CallViewModel,
     onCallClick: (String) -> Unit,
-    onMessageClick: (String) -> Unit
+    onMessageClick: (String) -> Unit,
+    onCallItemClick: (Call) -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        when (val state = uiState) {
-            is CallUiState.Success -> {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(vertical = 8.dp)
-                ) {
-                    items(state.calls) { call ->
-                        CallItem(
-                            call = call,
-                            onCallClick = { onCallClick(call.number) },
-                            onMessageClick = { onMessageClick(call.number) }
-                        )
-                    }
-                }
+    when (uiState) {
+        is CallUiState.Loading -> {
+            Box(modifier = Modifier.fillMaxSize()) {
+                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
             }
-            is CallUiState.Loading -> {
-                CircularProgressIndicator(
+        }
+        is CallUiState.Error -> {
+            Box(modifier = Modifier.fillMaxSize()) {
+                Text(
+                    text = (uiState as CallUiState.Error).message,
                     modifier = Modifier.align(Alignment.Center)
                 )
             }
-            is CallUiState.Error -> {
-                Text(
-                    text = state.message,
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .padding(16.dp)
-                )
+        }
+        is CallUiState.Success -> {
+            val calls = (uiState as CallUiState.Success).calls
+            LazyColumn {
+                items(calls) { call ->
+                    CallItem(
+                        call = call,
+                        onCallClick = onCallClick,
+                        onMessageClick = onMessageClick,
+                        onItemClick = onCallItemClick
+                    )
+                }
             }
         }
     }
@@ -64,10 +63,14 @@ fun CallScreen(
 @Composable
 private fun CallItem(
     call: Call,
-    onCallClick: () -> Unit,
-    onMessageClick: () -> Unit
+    onCallClick: (String) -> Unit,
+    onMessageClick: (String) -> Unit,
+    onItemClick: (Call) -> Unit
 ) {
     ListItem(
+        modifier = Modifier
+            .clickable { onItemClick(call) }
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         headlineContent = {
             Text(
                 text = call.name ?: call.number,
@@ -76,60 +79,30 @@ private fun CallItem(
             )
         },
         supportingContent = {
-            Column {
-                if (call.name != null) {
-                    Text(
-                        text = call.number,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        text = formatDate(call.timestamp),
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                    if (call.duration > 0) {
-                        Text(
-                            text = formatDuration(call.duration),
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
-                }
-            }
+            Text(
+                text = if (call.name != null) call.number else "",
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         },
         leadingContent = {
             Icon(
-                imageVector = Icons.Filled.Phone,
-                contentDescription = "Call type",
-                modifier = when (call.type) {
-                    CallType.INCOMING -> Modifier.rotate(180f)
-                    CallType.OUTGOING -> Modifier
-                    CallType.MISSED -> Modifier.rotate(135f)
-                    CallType.REJECTED -> Modifier.rotate(135f)
-                    CallType.BLOCKED -> Modifier.rotate(135f)
-                    CallType.UNKNOWN -> Modifier
-                },
-                tint = when (call.type) {
-                    CallType.MISSED, CallType.REJECTED, CallType.BLOCKED -> MaterialTheme.colorScheme.error
-                    CallType.INCOMING -> MaterialTheme.colorScheme.primary
-                    CallType.OUTGOING -> MaterialTheme.colorScheme.secondary
-                    else -> LocalContentColor.current
-                }
+                imageVector = Icons.Default.Person,
+                contentDescription = null,
+                modifier = Modifier.size(40.dp)
             )
         },
         trailingContent = {
             Row {
-                IconButton(onClick = onCallClick) {
+                IconButton(onClick = { onCallClick(call.number) }) {
                     Icon(
-                        imageVector = Icons.Filled.Call,
+                        imageVector = Icons.Default.Call,
                         contentDescription = "Call"
                     )
                 }
-                IconButton(onClick = onMessageClick) {
+                IconButton(onClick = { onMessageClick(call.number) }) {
                     Icon(
-                        imageVector = Icons.Filled.Message,
+                        imageVector = Icons.Default.Message,
                         contentDescription = "Message"
                     )
                 }
